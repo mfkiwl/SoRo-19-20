@@ -1,6 +1,7 @@
 #include <Ethernet.h>
 #include <EthernetUdp.h>
 #include <Servo.h>
+#include "PID_v1.h"
 
 #define ENC_1_A 0x01 // pin A8
 #define ENC_1_B 0x02 // pin A9
@@ -80,13 +81,29 @@ int controlPos[] = {0, 0, 0, 0};
 byte port_k_prev = 0x00;
 
 //yaw (base) angle (perpendicular to ground)
-float yawAngle = 0;
+double yawAngle = 0;
 //shoulder angle (perpendicular to ground)
-float shoulderAngle = 0;
+double shoulderAngle = 0;
 //elbow angle (perpendicular to ground)
-float elbowAngle = 0;
+double elbowAngle = 0;
 //wrist pitch angle (perpendicular to ground)
-float wristPitchAngle = 0;
+double wristPitchAngle = 0;
+
+//kp, ki, and kd will need to be tuned with testing
+double kp = 0.0;
+double ki = 0.0;
+double kd = 0.0;
+//controlAngles holds float(controlPos)*3.0/10.0. 
+double controlAngles[] = {0.0, 0.0, 0.0, 0.0};
+double shoulderDistance = 0.0;
+double elbowDistance = 0.0;
+double wristDistance = 0.0;
+double yawDistance = 0.0;
+//DIRECT and REVERSE might need to be switched if the servos are adjusted in the wrong directions
+PID shoulderPID(&controlAngles[0], &shoulderDistance, &shoulderAngle, kp, ki, kd, REVERSE);
+PID elbowPID(&controlAngles[1], &elbowDistance, &elbowAngle, kp, ki, kd, REVERSE);
+PID wristPID(&controlAngles[2], &wristDistance, &wristPitchAngle, kp, ki, kd, DIRECT);
+PID yawPID(&controlAngles[3], &yawDistance, &yawAngle, kp, ki, kd, DIRECT);
 
 void setup() {
   cli();
@@ -170,6 +187,7 @@ void setup() {
 }
 
 void loop() {
+  
   limit_switches();
   
   if(read_data())
@@ -200,9 +218,26 @@ void loop() {
   Serial.print(", ");
   Serial.println(float(controlPos[3])*3.0/10.0);
 
+  //Update the array of servo angles for the PIDs
+  controlAngles[0] = float(controlPos[0])*3.0/10.0;
+  controlAngles[1] = float(controlPos[1])*3.0/10.0;
+  controlAngles[2] = float(controlPos[2])*3.0/10.0;
+  controlAngles[3] = float(controlPos[3])*3.0/10.0;
+
+  //Updates distance values to write to the servos
+  shoulderPID.Compute();
+  elbowPID.Compute();
+  wristPID.Compute();
+  yawPID.Compute();
+
+  shoulder.write(shoulderDistance);
+  elbow.write(elbowDistance);
+  wristPitch.write(wristDistance);
+  yaw.write(yawDistance);
+
   //move_joint(yawAngle, float(controlPos[3])*3.0/10.0, &yaw);
   //move_joint_backwards(shoulderAngle, float(controlPos[0])*3.0/10.0, &shoulder);
-  move_joint_backwards(elbowAngle, float(controlPos[1])*3.0/10.0, &elbow);
+  //move_joint_backwards(elbowAngle, float(controlPos[1])*3.0/10.0, &elbow);
   //move_joint(wristPitchAngle, float(controlPos[2])*3.0/10.0, &wristPitch);
   delay(10);
 }
