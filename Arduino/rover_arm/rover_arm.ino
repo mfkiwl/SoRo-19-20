@@ -106,6 +106,12 @@ PID wristPID(&controlAngles[2], &wristDistance, &wristPitchAngle, kp, ki, kd, DI
 PID yawPID(&controlAngles[3], &yawDistance, &yawAngle, kp, ki, kd, DIRECT);
 
 void setup() {
+  //turn on all of the PIDs
+  shoulderPID.SetMode(AUTOMATIC);
+  elbowPID.SetMode(AUTOMATIC);
+  wristPID.SetMode(AUTOMATIC);
+  yawPID.SetMode(AUTOMATIC);
+  
   cli();
   // set encoder pins as inputs, enable pullups
   DDRK &= 0x00;
